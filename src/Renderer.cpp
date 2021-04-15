@@ -52,6 +52,8 @@ Renderer::Renderer(xwin::Window& window)
     mFence = nullptr;
 
     initializeAPI(window);
+    initTeapot();
+    // initCube();
     initializeResources();
     setupCommands();
     tStart = std::chrono::high_resolution_clock::now();
@@ -402,7 +404,7 @@ void Renderer::initializeResources()
         D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
             {"POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0,
              D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0},
-            {"COLOR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12,
+            {"NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12,
              D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0}};
 
         // Create the UBO.
@@ -572,7 +574,8 @@ void Renderer::initializeResources()
 
     // Create the vertex buffer.
     {
-        const UINT vertexBufferSize = sizeof(mVertexBufferData);
+        // const UINT vertexBufferSize = sizeof(mVertexBufferData);
+        const UINT vertexBufferSize = mNumVertices * sizeof(Vertex);
 
         // Note: using upload heaps to transfer static data like vert buffers is
         // not recommended. Every time the GPU needs it, the upload heap will be
@@ -614,7 +617,7 @@ void Renderer::initializeResources()
 
         ThrowIfFailed(mVertexBuffer->Map(
             0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
-        memcpy(pVertexDataBegin, mVertexBufferData, sizeof(mVertexBufferData));
+        memcpy(pVertexDataBegin, mVertexBufferData, vertexBufferSize);
         mVertexBuffer->Unmap(0, nullptr);
 
         // Initialize the vertex buffer view.
@@ -626,7 +629,9 @@ void Renderer::initializeResources()
 
     // Create the index buffer.
     {
-        const UINT indexBufferSize = sizeof(mIndexBufferData);
+        // const UINT indexBufferSize = sizeof(mIndexBufferData);
+        const UINT indexBufferSize = mNumIndices * sizeof(uint32_t);
+        std::cout << "indexBufferSize size:: " << indexBufferSize << " and uint32_t size: " << sizeof(uint32_t) << std::endl;
 
         // Note: using upload heaps to transfer static data like vert buffers is
         // not recommended. Every time the GPU needs it, the upload heap will be
@@ -668,7 +673,7 @@ void Renderer::initializeResources()
 
         ThrowIfFailed(mIndexBuffer->Map(
             0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin)));
-        memcpy(pVertexDataBegin, mIndexBufferData, sizeof(mIndexBufferData));
+        memcpy(pVertexDataBegin, mIndexBufferData, indexBufferSize);
         mIndexBuffer->Unmap(0, nullptr);
 
         // Initialize the vertex buffer view.
@@ -809,7 +814,8 @@ void Renderer::setupCommands()
     mCommandList->IASetVertexBuffers(0, 1, &mVertexBufferView);
     mCommandList->IASetIndexBuffer(&mIndexBufferView);
 
-    mCommandList->DrawIndexedInstanced(3, 1, 0, 0, 0);
+    // std::cout << "number of triangles to draw: " << sizeof(mIndexBufferData) / sizeof(uint32_t)  << std::endl;
+    mCommandList->DrawIndexedInstanced(mNumIndices, 1, 0, 0, 0);
 
     // Indicate that the back buffer will now be used to present.
     D3D12_RESOURCE_BARRIER presentBarrier;
@@ -868,7 +874,7 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
     mViewport.MaxDepth = 1000.f;
 
     // Update Uniforms
-    float zoom = 2.5f;
+    float zoom = 4.0f;
 
     // Update matrices
     uboVS.projectionMatrix =
@@ -878,6 +884,10 @@ void Renderer::setupSwapchain(unsigned width, unsigned height)
         glm::translate(glm::identity<mat4>(), vec3(0.0f, 0.0f, zoom));
 
     uboVS.modelMatrix = glm::identity<mat4>();
+
+    // GLM is column major and therefore the multiplication is other way round
+    uboVS.normalMatrix =
+        glm::mat3(glm::transpose(glm::inverse(uboVS.viewMatrix * uboVS.modelMatrix)));
 
     if (mSwapchain != nullptr)
     {
@@ -954,6 +964,11 @@ void Renderer::render()
         uboVS.modelMatrix = glm::rotate(uboVS.modelMatrix, 0.001f * time,
                                         vec3(0.0f, 1.0f, 0.0f));
 
+        // GLM is column major and therefore the multiplication is other way
+        // round
+        uboVS.normalMatrix = glm::mat3(
+            glm::transpose(glm::inverse(uboVS.viewMatrix * uboVS.modelMatrix)));
+
         D3D12_RANGE readRange;
         readRange.Begin = 0;
         readRange.End = 0;
@@ -989,4 +1004,204 @@ void Renderer::render()
     }
 
     mFrameIndex = mSwapchain->GetCurrentBackBufferIndex();
+}
+
+void Renderer::initTeapot()
+{
+    FILE* fp;
+    float x, y, z;
+    int fx, fy, fz, ignore;
+    int c1, c2;
+    float minY = INFINITY, minZ = INFINITY;
+    float maxY = -INFINITY, maxZ = -INFINITY;
+
+    std::vector<vec3> teapotVertices;
+    std::vector<vec3> teapotNormals;
+    std::vector<uint32_t> teapotIndices;
+
+    fp = fopen("assets\\teapot.obj", "rb");
+
+    if (fp == NULL)
+    {
+        std::cerr << "Error loading obj file" << std::endl;
+        exit(-1);
+    }
+
+    while (!feof(fp))
+    {
+        c1 = fgetc(fp);
+        while (!(c1 == 'v' || c1 == 'f'))
+        {
+            c1 = fgetc(fp);
+            if (feof(fp)) break;
+        }
+        c2 = fgetc(fp);
+
+        if ((c1 == 'v') && (c2 == ' '))
+        {
+            fscanf(fp, "%f %f %f", &x, &y, &z);
+            teapotVertices.push_back(vec3(x, y, z));
+            if (y < minY) minY = y;
+            if (z < minZ) minZ = z;
+            if (y > maxY) maxY = y;
+            if (z > maxZ) maxZ = z;
+        }
+        else if ((c1 == 'v') && (c2 == 'n'))
+        {
+            fscanf(fp, "%f %f %f", &x, &y, &z);
+            auto n = glm::normalize(vec3(x, y, z));
+            teapotNormals.push_back(vec3(n.x, n.y, n.z));
+        }
+        else if ((c1 == 'f'))
+        {
+            fscanf(fp, "%d//%d %d//%d %d//%d", &fx, &ignore, &fy, &ignore, &fz, &ignore);
+            teapotIndices.push_back(fx - 1);
+            teapotIndices.push_back(fy - 1);
+            teapotIndices.push_back(fz - 1);
+        }
+    }
+
+    fclose(fp); // Finished parsing
+                // Recenter the teapot
+    float avgY = (minY + maxY) / 2.0f - 0.02f;
+    float avgZ = (minZ + maxZ) / 2.0f;
+    for (unsigned int i = 0; i < teapotVertices.size(); ++i)
+    {
+        std::vector<float> shiftedVertex = std::vector<float>{
+            (teapotVertices[i][0] - 0.0f) * 1.58f,
+            (teapotVertices[i][0] - avgY) * 1.58f,
+            (teapotVertices[i][0] - avgZ) * 1.58f
+        };
+        teapotVertices[i] = (teapotVertices[i] - vec3(0, avgY, avgZ)) * vec3(1.58);
+    }
+
+    // mVertexBufferData = new Vertex[teapotVertices.size()];
+    // mIndexBufferData = new uint32_t[teapotIndices.size()];
+
+    for (int i = 0; i < teapotVertices.size(); i++)
+    {
+        mVertexBufferData[i] = {
+            {teapotVertices[i][0], teapotVertices[i][1], teapotVertices[i][2]},
+            {teapotNormals[i][0], teapotNormals[i][1], teapotNormals[i][2]}
+        };
+    }
+    
+    for (int i = 0; i < teapotIndices.size(); i++)
+    {
+        mIndexBufferData[i] = teapotIndices[i];
+    }
+
+    mNumVertices = teapotVertices.size();
+    mNumIndices = teapotIndices.size();
+
+    std::cout << "num of vertices: " << mNumVertices
+              << " and num of indices: " << mNumIndices << std::endl;
+}
+
+void Renderer::initCube()
+{
+    std::vector<vec3> vertexData = {
+        {-0.5f, -0.5f, 0.5f},
+        {-0.5f, 0.5f, 0.5f},
+        {0.5f, 0.5f, 0.5f},
+        {0.5f, -0.5f, 0.5f},
+
+        {-0.5f, -0.5f, -0.5f},
+        {-0.5f, 0.5f, -0.5f},
+        {0.5f, 0.5f, -0.5f},
+        {0.5f, -0.5f, -0.5f},
+
+        {-0.5f, -0.5f, 0.5f},
+        {-0.5f, 0.5f, 0.5f},
+        {-0.5f, 0.5f, -0.5f},
+        {-0.5f, -0.5f, -0.5f},
+
+        {0.5f, -0.5f, 0.5f},
+        {0.5f, 0.5f, 0.5f},
+        {0.5f, 0.5f, -0.5f},
+        {0.5f, -0.5f, -0.5f},
+
+        {0.5f, 0.5f, 0.5f},
+        {-0.5f, 0.5f, 0.5f},
+        {-0.5f, 0.5f, -0.5f},
+        {0.5f, 0.5f, -0.5f},
+        
+        {0.5f, -0.5f, 0.5f},
+        {-0.5f, -0.5f, 0.5f},
+        {-0.5f, -0.5f, -0.5f},
+        {0.5f, -0.5f, -0.5f}
+    };
+    std::cout << "I have vertex data" << std::endl;
+
+    std::vector<vec3> normalData = {
+        {0.0f, 0.0f, 1.0f},
+        { 0.0f, 0.0f, 1.0f},
+        {0.0f, 0.0f, 1.0f},
+        {0.0f, 0.0f, 1.0f},
+
+        {0.0f, 0.0f, -1.0f},
+        { 0.0f, 0.0f, -1.0f},
+        {0.0f, 0.0f, -1.0f},
+        {0.0f, 0.0f, -1.0f},
+        
+        {-1.0f, 0.0f, 0.0f},
+        {-1.0f, 0.0f, 0.0f},
+        {-1.0f, 0.0f, 0.0f},
+        {-1.0f, 0.0f, 0.0f},
+
+        {1.0f, 0.0f, 0.0f},
+        {1.0f, 0.0f, 0.0f},
+        {1.0f, 0.0f, 0.0f},
+        {1.0f, 0.0f, 0.0f},
+        
+        {0.0f, 1.0f, 0.0f},
+        {0.0f, 1.0f, 0.0f},
+        {0.0f, 1.0f, 0.0f},
+        {0.0f, 1.0f, 0.0f},
+        
+        {0.0f, -1.0f, 0.0f},
+        {0.0f, -1.0f, 0.0f},
+        {0.0f, -1.0f, 0.0f},
+        {0.0f, -1.0f, 0.0f}
+    };
+    std::cout << "I have normal data" << std::endl;
+
+    std::vector<uint32_t> indexData  = {
+        0,  1,  2,  0,  2,  3,  // Front face
+        4,  5,  6,  4,  6,  7,  // Back face
+        8,  9,  10, 8,  10, 11, // Left face
+        12, 13, 14, 12, 14, 15, // Right face
+        16, 17, 18, 16, 18, 19, // Top face
+        20, 21, 22, 20, 22, 23  // Bottom face
+    };
+    std::cout << "I have index data" << std::endl;
+    
+    // mVertexBufferData = new Vertex[vertexData.size()];
+    // mIndexBufferData = new uint32_t[normalData.size()];
+
+    std::cout << "initialized memory" << std::endl;
+
+    for (int i = 0; i < vertexData.size(); i++)
+    {
+        mVertexBufferData[i] = {
+            {vertexData[i][0], vertexData[i][1], vertexData[i][2]},
+            {normalData[i][0], normalData[i][1], normalData[i][2]}};
+    }
+
+    // std::cout << "copied over " << vertexData.size() << " of vertex and normal data" << std::endl;
+    // std::cout << "for mVertexBufferData, number of elements is " << sizeof(mVertexBufferData) / sizeof(Vertex) << std::endl;
+
+    for (int i = 0; i < indexData.size(); i++)
+    {
+        mIndexBufferData[i] = indexData[i];
+    }
+
+    mNumVertices = vertexData.size();
+    mNumIndices = indexData.size();
+
+    std::cout << "num of vertices: " << mNumVertices
+              << " and num of indices: " << mNumIndices << std::endl;
+
+    // std::cout << "copied over " << indexData.size() << " of index data" << std::endl;
+    // std::cout << "for mIndexBufferData, number of elements is " << sizeof(mIndexBufferData) / sizeof(uint32_t) << std::endl;
 }

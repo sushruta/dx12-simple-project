@@ -93,14 +93,67 @@ class Renderer
     struct Vertex
     {
         float position[3];
-        float color[3];
+        float normal[3];
     };
 
-    Vertex mVertexBufferData[3] = {{{1.0f, -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-                                   {{-1.0f, -1.0f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-                                   {{0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 1.0f}}};
+    /*************************/
+    /*** MY CODE FOR CUBES ***/
+    /*************************/
+    /*
+    Vertex mVertexBufferData[24] = {
+        // Front face
+        {{-0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+        {{-0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+        {{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+        {{0.5f, -0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+        // Back face
+        {{-0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}},
+        {{-0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}},
+        {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}},
+        {{0.5f, -0.5f, -0.5f}, {0.0f, 0.0f, -1.0f}},
+        // Left face
+        {{-0.5f, -0.5f, 0.5f}, {-1.0f, 0.0f, 0.0f}},
+        {{-0.5f, 0.5f, 0.5f}, {-1.0f, 0.0f, 0.0f}},
+        {{-0.5f, 0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}},
+        {{-0.5f, -0.5f, -0.5f}, {-1.0f, 0.0f, 0.0f}},
+        // Right face
+        {{0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, 0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        // Top face
+        {{0.5f, 0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{0.5f, 0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+        // Bottom face
+        {{0.5f, -0.5f, 0.5f}, {0.0f, -1.0f, 0.0f}},
+        {{-0.5f, -0.5f, 0.5f}, {0.0f, -1.0f, 0.0f}},
+        {{-0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}},
+        {{0.5f, -0.5f, -0.5f}, {0.0f, -1.0f, 0.0f}}
+    };
 
-    uint32_t mIndexBufferData[3] = {0, 1, 2};
+    uint32_t mIndexBufferData[36] = {
+        0,  1,  2,  0,  2,  3,  // Front face
+        4,  5,  6,  4,  6,  7,  // Back face
+        8,  9,  10, 8,  10, 11, // Left face
+        12, 13, 14, 12, 14, 15, // Right face
+        16, 17, 18, 16, 18, 19, // Top face
+        20, 21, 22, 20, 22, 23  // Bottom face
+    };
+    */
+
+    // Vertex* mVertexBufferData;
+    // uint32_t* mIndexBufferData;
+
+    Vertex mVertexBufferData[16384];
+    uint32_t mIndexBufferData[16384];
+
+    int mNumVertices;
+    int mNumIndices;
+
+    void initTeapot();
+    void initCube();
 
     std::chrono::time_point<std::chrono::steady_clock> tStart, tEnd;
     float mElapsedTime = 0.0f;
@@ -111,6 +164,7 @@ class Renderer
         glm::mat4 projectionMatrix;
         glm::mat4 modelMatrix;
         glm::mat4 viewMatrix;
+        glm::mat3 normalMatrix;
     } uboVS;
 
     static const UINT backbufferCount = 2;

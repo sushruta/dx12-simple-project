@@ -9,10 +9,10 @@ void xmain(int argc, const char** argv)
 
     xwin::WindowDesc windowDesc;
     windowDesc.name = "MainWindow";
-    windowDesc.title = "Hello Triangle";
+    windowDesc.title = "Hello DirectX12";
     windowDesc.visible = true;
-    windowDesc.width = 1280;
-    windowDesc.height = 720;
+    windowDesc.width = 500;
+    windowDesc.height = 500;
     //windowDesc.fullscreen = true;
     window.create(windowDesc, eventQueue);
 
