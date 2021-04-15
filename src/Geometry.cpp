@@ -84,36 +84,3 @@ void initTeapot()
         teapotVertices[i] = shiftedVertex;
     }
 }
-
-/*
-	// Done loading teapot file, now bind it
-	glBindVertexArray(VAOs[TEAPOT]);
-
-	// Bind vertices to layout location 0
-	glBindBuffer(GL_ARRAY_BUFFER, VBOs[TEAPOT]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vec3) * teapotVertices.size(), &teapotVertices[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(0); // This allows usage of layout location 0 in the vertex shader
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
-
-	// Bind normals to layout location 1
-	glBindBuffer(GL_ARRAY_BUFFER, NBOs[TEAPOT]);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(vec3) * teapotNormals.size(), &teapotNormals[0], GL_STATIC_DRAW);
-	glEnableVertexAttribArray(1); // This allows usage of layout location 1 in the vertex shader
-	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(GLfloat), 0);
-
-	// The indices array tells OpenGL what order to iterate through the buffers in when the shaders execute
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBOs[TEAPOT]);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned int) * teapotIndices.size(), &teapotIndices[0], GL_STATIC_DRAW);
-
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindVertexArray(0);
-}
-
-// Draws a solid teapot
-void solidTeapot(float size) {
-	glUniformMatrix4fv(modelviewPos, 1, GL_FALSE, &(modelview * glm::scale(mat4(1.0f), vec3(size, size, size)))[0][0]);
-	glBindVertexArray(VAOs[TEAPOT]);
-	glDrawElements(GL_TRIANGLES, teapotIndices.size(), GL_UNSIGNED_INT, 0);
-	glBindVertexArray(0);
-}
-*/
